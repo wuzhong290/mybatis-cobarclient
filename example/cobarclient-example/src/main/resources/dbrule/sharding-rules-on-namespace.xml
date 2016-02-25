@@ -1,0 +1,22 @@
+<rules>
+    <!--<bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">-->
+    <!--默认数据源,没有找到路由规则的时候向这个库读写数据-->
+    <!--<property name="dataSource" ref="dataSource"/>-->
+    <!--<property name="configLocation" value="classpath:mybatis-config.xml"/>-->
+    <!--<property name="mapperLocations" value="classpath*:mybatis/sqlmapper/*.xml"/>-->
+    <!--</bean>-->
+    <rule>
+        <namespace>com.cobar.demo.dao.UserMapper</namespace>
+        <shards>master</shards>
+    </rule>
+    <rule>
+        <namespace>com.cobar.demo.dao.TradeMapper</namespace>
+        <shardingExpression>splitDBName=='1'</shardingExpression>
+        <shards>slave_1,slave_2</shards>
+    </rule>
+    <rule>
+        <namespace>com.cobar.demo.dao.TradeMapper</namespace>
+        <shardingExpression>splitDBName=='2'</shardingExpression>
+        <shards>slave_2</shards>
+    </rule>
+</rules>

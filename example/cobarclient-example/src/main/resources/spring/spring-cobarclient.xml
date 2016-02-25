@@ -1,0 +1,80 @@
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.5.xsd
+        http://www.springframework.org/schema/aop
+        http://www.springframework.org/schema/aop/spring-aop-2.5.xsd">
+
+    <!--mybatis扫描指定的接口包-->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="com.cobar.demo.dao"/>
+        <property name="sqlSessionTemplateBeanName" value="sqlSessionTemplate"/>
+    </bean>
+
+    <bean id="sqlSessionTemplate" class="com.alibaba.cobarclient.CobarSqlSessionTemplate">
+        <constructor-arg index="0" ref="sqlSessionFactory" />
+        <property name="cobarDataSourceService" ref="dataSources" />
+        <property name="defaultDataSource" ref="dataSource"/>
+        <property name="router" ref="databaseRouter" />
+        <property name="sqlAuditor">
+            <bean class="com.alibaba.cobar.client.audit.SimpleSqlAuditor" />
+        </property>
+        <property name="profileLongTimeRunningSql" value="true" />
+        <property name="longTimeRunningSqlIntervalThreshold" value="3600000" />
+    </bean>
+
+    <bean id="transactionFactory" class="com.alibaba.cobarclient.transaction.CobarForSpringJdbcTransactionFactory" />
+
+    <!-- databaseRouter -->
+    <bean id="databaseRouter"
+          class="com.alibaba.cobar.client.router.config.CobarInteralRouterXmlFactoryBean">
+        <property name="configLocations">
+            <list>
+                <value>classpath:/dbrule/sharding-rules-on-namespace.xml</value>
+            </list>
+        </property>
+    </bean>
+
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <!--默认数据源,没有找到路由规则的时候向这个库读写数据-->
+        <property name="dataSource" ref="dataSource"/>
+        <property name="configLocation" value="classpath:mybatis-config.xml"/>
+        <property name="mapperLocations" value="classpath*:mybatis/sqlmapper/*.xml"/>
+        <property name="transactionFactory" ref="transactionFactory"/>
+    </bean>
+
+    <!--@EnableTransactionManagement和tx:annotation-driven相同-->
+    <tx:annotation-driven transaction-manager="txManager" proxy-target-class="true"/>
+    <aop:aspectj-autoproxy proxy-target-class="true"/>
+    <bean id="txManager"
+          class="com.alibaba.cobar.client.transaction.MultipleDataSourcesTransactionManager">
+        <property name="cobarDataSourceService" ref="dataSources" />
+        <property name="transactionSynchronization" value="2"/>
+    </bean>
+
+    <bean id="dataSources" class="com.alibaba.cobar.client.datasources.DefaultCobarDataSourceService">
+        <property name="dataSourceDescriptors">
+            <set>
+                <bean class="com.alibaba.cobar.client.datasources.CobarDataSourceDescriptor">
+                    <property name="identity" value="master"/>
+                    <property name="targetDataSource" ref="dataSource"/>
+                    <property name="poolSize" value="3" />
+                </bean>
+                <bean class="com.alibaba.cobar.client.datasources.CobarDataSourceDescriptor">
+                    <property name="identity" value="slave_1"/>
+                    <property name="targetDataSource" ref="dataSource1"/>
+                    <property name="poolSize" value="3" />
+                </bean>
+                <bean class="com.alibaba.cobar.client.datasources.CobarDataSourceDescriptor">
+                    <property name="identity" value="slave_2"/>
+                    <property name="targetDataSource" ref="dataSource2"/>
+                    <property name="poolSize" value="3" />
+                </bean>
+            </set>
+        </property>
+    </bean>
+
+</beans>
