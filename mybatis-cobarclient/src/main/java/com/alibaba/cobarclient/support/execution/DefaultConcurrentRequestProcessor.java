@@ -16,9 +16,7 @@ import org.springframework.jdbc.support.SQLErrorCodeSQLExceptionTranslator;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -41,6 +39,10 @@ public class DefaultConcurrentRequestProcessor implements IConcurrentRequestProc
 
     public List<Object> process(List<ConcurrentRequest> requests) {
         ArrayList resultList = new ArrayList();
+        Map<Connection, SqlSession> conToSession = new HashMap<Connection, SqlSession>();
+
+        boolean isRealRequireClosedConnection = true;
+
         if(CollectionUtils.isEmpty(requests)) {
             return resultList;
         } else {
@@ -60,11 +62,13 @@ public class DefaultConcurrentRequestProcessor implements IConcurrentRequestProc
                     ConcurrentRequest springCon = depo.getOriginalRequest();
                     final SqlSessionCallback dataSource = springCon.getAction();
                     final Connection ex = depo.getConnectionToUse();
+                    final SqlSession session = this.getSqlSessionFactory().openSession(getExecutorType(), ex);
+                    conToSession.put(ex, session);
                     futures.add(springCon.getExecutor().submit(new Callable() {
                         public Object call() throws Exception {
                             Object var1;
                             try {
-                                var1 = DefaultConcurrentRequestProcessor.this.executeWith(ex, dataSource);
+                                var1 = DefaultConcurrentRequestProcessor.this.executeWith(session, dataSource);
                             } finally {
                                 latch.countDown();
                             }
@@ -96,9 +100,21 @@ public class DefaultConcurrentRequestProcessor implements IConcurrentRequestProc
                                 } else {
                                     DataSourceUtils.doReleaseConnection(springCon1, dataSource1);
                                 }
+
+                                isRealRequireClosedConnection = springCon1.isClosed();
                             }
                         } catch (Throwable var22) {
                             this.logger.info("Could not close JDBC Connection", var22);
+                        }
+                        try {
+                            if (isRealRequireClosedConnection && springCon1 != null) {
+                                SqlSession session = conToSession.get(springCon1);
+                                if (session != null) {
+                                    session.close();
+                                }
+                            }
+                        } catch (Throwable ex) {
+                            logger.info("不能关闭SqlSession,否则分布式事务无法commit", ex);
                         }
                     }
 
@@ -119,9 +135,20 @@ public class DefaultConcurrentRequestProcessor implements IConcurrentRequestProc
                         } else {
                             DataSourceUtils.doReleaseConnection(springCon2, dataSource2);
                         }
+                        isRealRequireClosedConnection = springCon2.isClosed();
                     }
                 } catch (Throwable var23) {
                     this.logger.info("Could not close JDBC Connection", var23);
+                }
+                try {
+                    if (isRealRequireClosedConnection && springCon2 != null) {
+                        SqlSession session = conToSession.get(springCon2);
+                        if (session != null) {
+                            session.close();
+                        }
+                    }
+                } catch (Throwable ex) {
+                    logger.info("不能关闭SqlSession,否则分布式事务无法commit", ex);
                 }
             }
 
@@ -130,20 +157,13 @@ public class DefaultConcurrentRequestProcessor implements IConcurrentRequestProc
         }
     }
 
-    protected Object executeWith(Connection connection, SqlSessionCallback action) {
-        SqlSession session = null;
-
+    protected Object executeWith(SqlSession session, SqlSessionCallback action) {
         Object ex;
-        try {
-            session = this.getSqlSessionFactory().openSession(getExecutorType(),connection);
 
-            try {
-                ex = action.doInSqlSession(session);
-            } catch (SQLException var9) {
-                throw (new SQLErrorCodeSQLExceptionTranslator()).translate("SqlMapClient operation", (String)null, var9);
-            }
-        } finally {
-            session.close();
+        try {
+            ex = action.doInSqlSession(session);
+        } catch (SQLException var9) {
+            throw (new SQLErrorCodeSQLExceptionTranslator()).translate("SqlMapClient operation", (String)null, var9);
         }
 
         return ex;
