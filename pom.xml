@@ -6,7 +6,7 @@
     <artifactId>mybatis-cobarclient-parent</artifactId>
     <modules>
         <module>mybatis-cobarclient</module>
-        <module>example/cobarclient-example</module>
+        <module>cobarclient-example</module>
     </modules>
     <groupId>com.alibaba.cobarclient</groupId>
     <version>0.0.1</version>
