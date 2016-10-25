@@ -114,4 +114,42 @@
             </plugin>
         </plugins>
     </build>
+    <repositories>
+        <repository>
+            <id>maven.oschina.net</id>
+            <url>http://maven.oschina.net/content/groups/public/</url>
+        </repository>
+        <repository>
+            <id>lilyproject.snapshot</id>
+            <name>Lily Maven snapshot repository</name>
+            <url>http://lilyproject.org/maven/maven2/deploy/</url>
+        </repository>
+
+        <repository>
+            <id>cdh.repo</id>
+            <url>https://repository.cloudera.com/artifactory/cloudera-repos</url>
+            <name>Cloudera Repositories</name>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+
+        <repository>
+            <id>cdh.snapshots.repo</id>
+            <url>https://repository.cloudera.com/artifactory/libs-snapshot-local</url>
+            <name>Cloudera Snapshots Repository</name>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+        </repository>
+
+        <repository>
+            <id>maven.tempo-db.com</id>
+            <url>http://maven.tempo-db.com/artiferactory/list/twitter/</url>
+        </repository>
+
+    </repositories>
 </project>
